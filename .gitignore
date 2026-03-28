@@ -17,6 +17,7 @@ env/
 *.log
 *.tmp
 *.cache
+.pytest_cache/
 *.DS_Store
 
 # Training outputs
