@@ -32,32 +32,75 @@ Keep all ablation groups under the same setting:
 
 | Item | Recommended Value |
 |---|---|
-| Data | `data/masati.yaml` |
-| Epochs | `300` |
+| Data | `/usr/sangui/PythonProject/yolov12/data/masati.yaml` |
+| Epochs | `150` |
 | Image size | `640` |
 | Optimizer | `AdamW` |
-| Batch size | `16` |
+| Batch size | `6` |
 | Device | `0` |
-| Project dir | `runs/detect_paper` |
+| Project dir | `runs/detect` |
 
-If GPU memory becomes tight, reduce only `batch`, and record the change.
+Recommended shared hyperparameters:
+
+- `lr0=0.001`
+- `lrf=0.01`
+- `weight_decay=0.05`
+- `warmup_epochs=5`
+- `patience=50`
+- `box=10.0`
+- `cls=0.3`
+- `dfl=1.5`
+- `mosaic=1.0`
+- `mixup=0.2`
+- `copy_paste=0.5`
+- `degrees=15.0`
+- `flipud=0.5`
+- `scale=0.9`
+- `close_mosaic=15`
+- `amp=True`
+- `workers=8`
+
+If GPU memory becomes tight, reduce only `batch`, and record the change. Keep the other settings unchanged across groups.
 
 ## 4. Training Commands
 
 Run from the project root on Linux.
+
+Important:
+
+- Do not leave spaces after the line-continuation `\`.
+- Reusing the same `name` with `exist_ok=False` will create a new run with a numeric suffix.
 
 ### Group A: YOLOv12 baseline
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 yolo detect train \
   model=ultralytics/cfg/models/v12/yolov12.yaml \
-  data=data/masati.yaml \
-  epochs=300 \
+  data=/usr/sangui/PythonProject/yolov12/data/masati.yaml \
+  epochs=150 \
   imgsz=640 \
-  batch=16 \
+  batch=6 \
+  device=0 \
   optimizer=AdamW \
-  project=runs/detect_paper \
-  name=paper_masati_a_yolov12_640_adamw_e300_b16_20260328
+  lr0=0.001 \
+  lrf=0.01 \
+  weight_decay=0.05 \
+  warmup_epochs=5 \
+  patience=50 \
+  box=10.0 \
+  cls=0.3 \
+  dfl=1.5 \
+  mosaic=1.0 \
+  mixup=0.2 \
+  copy_paste=0.5 \
+  degrees=15.0 \
+  flipud=0.5 \
+  scale=0.9 \
+  close_mosaic=15 \
+  amp=True \
+  workers=8 \
+  project=runs/detect \
+  name=paper_masati_a_yolov12_640_adamw_e150_b6_20260328
 ```
 
 ### Group B: YOLOv12 + DMMA only
@@ -65,13 +108,31 @@ CUDA_VISIBLE_DEVICES=0 yolo detect train \
 ```bash
 CUDA_VISIBLE_DEVICES=0 yolo detect train \
   model=ultralytics/cfg/models/v12/yolov12-dmma-only.yaml \
-  data=data/masati.yaml \
-  epochs=300 \
+  data=/usr/sangui/PythonProject/yolov12/data/masati.yaml \
+  epochs=150 \
   imgsz=640 \
-  batch=16 \
+  batch=6 \
+  device=0 \
   optimizer=AdamW \
-  project=runs/detect_paper \
-  name=paper_masati_b_dmma_only_640_adamw_e300_b16_20260328
+  lr0=0.001 \
+  lrf=0.01 \
+  weight_decay=0.05 \
+  warmup_epochs=5 \
+  patience=50 \
+  box=10.0 \
+  cls=0.3 \
+  dfl=1.5 \
+  mosaic=1.0 \
+  mixup=0.2 \
+  copy_paste=0.5 \
+  degrees=15.0 \
+  flipud=0.5 \
+  scale=0.9 \
+  close_mosaic=15 \
+  amp=True \
+  workers=8 \
+  project=runs/detect \
+  name=paper_masati_b_dmma_only_640_adamw_e150_b6_20260328
 ```
 
 ### Group C: YOLOv12 + DMMA + ECA
@@ -79,13 +140,31 @@ CUDA_VISIBLE_DEVICES=0 yolo detect train \
 ```bash
 CUDA_VISIBLE_DEVICES=0 yolo detect train \
   model=ultralytics/cfg/models/v12/yolov12-dmma.yaml \
-  data=data/masati.yaml \
-  epochs=300 \
+  data=/usr/sangui/PythonProject/yolov12/data/masati.yaml \
+  epochs=150 \
   imgsz=640 \
-  batch=16 \
+  batch=6 \
+  device=0 \
   optimizer=AdamW \
-  project=runs/detect_paper \
-  name=paper_masati_c_dmma_eca_640_adamw_e300_b16_20260328
+  lr0=0.001 \
+  lrf=0.01 \
+  weight_decay=0.05 \
+  warmup_epochs=5 \
+  patience=50 \
+  box=10.0 \
+  cls=0.3 \
+  dfl=1.5 \
+  mosaic=1.0 \
+  mixup=0.2 \
+  copy_paste=0.5 \
+  degrees=15.0 \
+  flipud=0.5 \
+  scale=0.9 \
+  close_mosaic=15 \
+  amp=True \
+  workers=8 \
+  project=runs/detect \
+  name=paper_masati_c_dmma_eca_640_adamw_e150_b6_20260328
 ```
 
 ### Group D: YOLOv12 + DMMA + ECA + P2
@@ -93,13 +172,31 @@ CUDA_VISIBLE_DEVICES=0 yolo detect train \
 ```bash
 CUDA_VISIBLE_DEVICES=0 yolo detect train \
   model=ultralytics/cfg/models/v12/yolov12-dmma-p2-efficient.yaml \
-  data=data/masati.yaml \
-  epochs=300 \
+  data=/usr/sangui/PythonProject/yolov12/data/masati.yaml \
+  epochs=150 \
   imgsz=640 \
-  batch=16 \
+  batch=6 \
+  device=0 \
   optimizer=AdamW \
-  project=runs/detect_paper \
-  name=paper_masati_d_dmma_eca_p2_640_adamw_e300_b16_20260328
+  lr0=0.001 \
+  lrf=0.01 \
+  weight_decay=0.05 \
+  warmup_epochs=5 \
+  patience=50 \
+  box=10.0 \
+  cls=0.3 \
+  dfl=1.5 \
+  mosaic=1.0 \
+  mixup=0.2 \
+  copy_paste=0.5 \
+  degrees=15.0 \
+  flipud=0.5 \
+  scale=0.9 \
+  close_mosaic=15 \
+  amp=True \
+  workers=8 \
+  project=runs/detect \
+  name=paper_masati_d_dmma_eca_p2_640_adamw_e150_b6_20260328
 ```
 
 ## 5. Validation Commands
@@ -108,8 +205,8 @@ After each training run, validate with the same image size:
 
 ```bash
 CUDA_VISIBLE_DEVICES=0 yolo detect val \
-  model=runs/detect_paper/<run_name>/weights/best.pt \
-  data=data/masati.yaml \
+  model=runs/detect/<run_name>/weights/best.pt \
+  data=/usr/sangui/PythonProject/yolov12/data/masati.yaml \
   imgsz=640 \
   device=0
 ```
