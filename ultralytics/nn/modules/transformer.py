@@ -729,11 +729,13 @@ class DMMALayer(nn.Module):
         drop_path=0.0,
         act_layer=nn.GELU,
         norm_layer=nn.LayerNorm,
+        use_eca=True,
     ):
         super().__init__()
         self.dim = dim
         self.window_size = window_size
         self.shift_size = shift_size
+        self.use_eca = use_eca
 
         self.norm1 = norm_layer(dim)
         self.attn = DifferenceMaskAttention(
@@ -744,7 +746,7 @@ class DMMALayer(nn.Module):
             attn_drop=attn_drop,
             proj_drop=drop,
         )
-        self.channel_attn = DMMAChannelAttention(dim)
+        self.channel_attn = DMMAChannelAttention(dim) if use_eca else nn.Identity()
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
         self.norm2 = norm_layer(dim)
         self.mlp = DMMAMlp(dim, int(dim * mlp_ratio), act_layer, drop)
@@ -774,7 +776,7 @@ class DMMALayer(nn.Module):
             x = F.pad(x, (0, pad_w, 0, pad_h))
         hp, wp = h + pad_h, w + pad_w
 
-        channel_mask = self.channel_attn(x).permute(0, 2, 3, 1)
+        channel_mask = self.channel_attn(x).permute(0, 2, 3, 1) if self.use_eca else None
         shortcut = x.permute(0, 2, 3, 1).contiguous().view(b, hp * wp, c)
         out = self.norm1(shortcut).view(b, hp, wp, c)
 
@@ -789,7 +791,8 @@ class DMMALayer(nn.Module):
         attn_windows = self.attn(windows, attn_mask)
         attn_windows = attn_windows.view(-1, self.window_size, self.window_size, c)
         shifted = dmma_window_reverse(attn_windows, self.window_size, hp, wp)
-        shifted = shifted * channel_mask.expand_as(out)
+        if channel_mask is not None:
+            shifted = shifted * channel_mask.expand_as(out)
 
         if self.shift_size > 0:
             out = torch.roll(shifted, shifts=(self.shift_size, self.shift_size), dims=(1, 2))
@@ -892,6 +895,7 @@ class MSDMMALayer(nn.Module):
         act_layer=nn.GELU,
         norm_layer=nn.LayerNorm,
         use_density_gate=False,  # Default False for stability; set True for DASA-style gating
+        use_eca=True,
 
     ):
         super().__init__()
@@ -918,6 +922,7 @@ class MSDMMALayer(nn.Module):
                 drop_path=drop_path,
                 act_layer=act_layer,
                 norm_layer=norm_layer,
+                use_eca=use_eca,
             )
             for ws in self.window_sizes
         )

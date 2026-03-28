@@ -36,6 +36,23 @@ from ultralytics.utils.torch_utils import TORCH_1_9
 IS_TMP_WRITEABLE = is_dir_writeable(TMP)  # WARNING: must be run once tests start as TMP does not exist on tests/init
 
 
+def test_dmma_eca_toggle_and_ablation_yaml():
+    """Test that DMMA keeps ECA by default, supports disabling it, and that the ablation YAML builds."""
+    import torch.nn as nn
+
+    from ultralytics.nn.modules.block import C2fDMMA
+    from ultralytics.nn.modules.transformer import DMMAChannelAttention
+
+    default_block = C2fDMMA(128, 128, n=1, window_size=4, num_heads=4)
+    assert isinstance(default_block.m[0].channel_attn, DMMAChannelAttention)
+
+    dmma_only_block = C2fDMMA(128, 128, n=1, window_size=4, num_heads=4, use_eca=False)
+    assert isinstance(dmma_only_block.m[0].channel_attn, nn.Identity)
+
+    model = YOLO(ROOT / "cfg" / "models" / "v12" / "yolov12-dmma-only.yaml")
+    assert model.model is not None
+
+
 def test_model_forward():
     """Test the forward pass of the YOLO model."""
     model = YOLO(CFG)

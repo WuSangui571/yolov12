@@ -488,6 +488,7 @@ class C2fDMMA(nn.Module):
         shift=True,
         mlp_ratio=4.0,
         e=0.5,
+        use_eca=True,
     ):
         """Initialize DMMA-backed C2f block."""
         super().__init__()
@@ -508,6 +509,7 @@ class C2fDMMA(nn.Module):
                         window_sizes=window_sizes,
                         shift=shift and i % 2 == 1,
                         mlp_ratio=mlp_ratio,
+                        use_eca=use_eca,
                     )
                 )
             else:
@@ -519,6 +521,7 @@ class C2fDMMA(nn.Module):
                         window_size=ws,
                         shift_size=(ws // 2 if (shift and i % 2 == 1) else 0),
                         mlp_ratio=mlp_ratio,
+                        use_eca=use_eca,
                     )
                 )
 
