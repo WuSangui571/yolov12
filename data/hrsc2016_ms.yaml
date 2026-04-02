@@ -1,7 +1,9 @@
 # HRSC2016-MS dataset configuration for YOLOv12.
 # Converted to single-class horizontal-box detection format.
+# Ultralytics resolves non-absolute paths under its internal datasets directory,
+# so "../HRSC2016-MS" points back to the repo root on both Windows and Linux.
 
-path: HRSC2016-MS
+path: ../HRSC2016-MS
 train: images/train
 val: images/val
 test: images/test

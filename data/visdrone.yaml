@@ -1,7 +1,8 @@
 # VisDrone2019-DET dataset configuration for YOLOv12.
-# Uses repo-relative path to match the existing MASATI setup.
+# Ultralytics resolves non-absolute paths under its internal datasets directory,
+# so "../VisDrone2019" points back to the repo root on both Windows and Linux.
 
-path: VisDrone2019
+path: ../VisDrone2019
 train: VisDrone2019-DET-train/images
 val: VisDrone2019-DET-val/images
 test: VisDrone2019-DET-test-dev/images

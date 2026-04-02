@@ -1,7 +1,8 @@
 # MASATI dataset configuration for YOLOv12.
-# Use repo-relative path so the same file works on Windows and Linux.
+# Ultralytics resolves non-absolute paths under its internal datasets directory,
+# so "../MASATI" points back to the repo root on both Windows and Linux.
 
-path: MASATI
+path: ../MASATI
 train: images/train
 val: images/val
 test: images/test
