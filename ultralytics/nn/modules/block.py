@@ -489,6 +489,9 @@ class C2fDMMA(nn.Module):
         mlp_ratio=4.0,
         e=0.5,
         use_eca=True,
+        use_difference_gate=True,
+        learnable_temperature=True,
+        learnable_mask_scale=True,
     ):
         """Initialize DMMA-backed C2f block."""
         super().__init__()
@@ -510,6 +513,9 @@ class C2fDMMA(nn.Module):
                         shift=shift and i % 2 == 1,
                         mlp_ratio=mlp_ratio,
                         use_eca=use_eca,
+                        use_difference_gate=use_difference_gate,
+                        learnable_temperature=learnable_temperature,
+                        learnable_mask_scale=learnable_mask_scale,
                     )
                 )
             else:
@@ -522,6 +528,9 @@ class C2fDMMA(nn.Module):
                         shift_size=(ws // 2 if (shift and i % 2 == 1) else 0),
                         mlp_ratio=mlp_ratio,
                         use_eca=use_eca,
+                        use_difference_gate=use_difference_gate,
+                        learnable_temperature=learnable_temperature,
+                        learnable_mask_scale=learnable_mask_scale,
                     )
                 )
 

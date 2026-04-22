@@ -1,0 +1,1289 @@
++-----------------------------------+-----------------------------------+
+| Crossmark                         | ARTICLE TYPE                      |
+|                                   |                                   |
+| RECEIVED                          | Difference Mask Mixed Attention   |
+|                                   | with ECA for Small-Ship Detection |
+| dd Month Year                     | in Optical Remote Sensing Images  |
+|                                   |                                   |
+| REVISED                           | Shuai Yuan^1^, Haoze Shou^2^ and  |
+|                                   | Author Name^1,2,\*^               |
+| dd Month Year                     |                                   |
+|                                   | ^1^ *School of Computer Science   |
+| ACCEPTED                          | and Engineering, Shenyang Jianzhu |
+|                                   | University, Shenyang 110168,      |
+| dd Month Year                     | China*                            |
+|                                   |                                   |
+| PUBLISHED                         | ^2^ Affiliation                   |
+|                                   |                                   |
+| dd Month Year                     | \*Author to whom any              |
+|                                   | correspondence should be          |
+|                                   | addressed.                        |
+|                                   |                                   |
+|                                   | **E-mail:** reidyuan@163.com      |
+|                                   |                                   |
+|                                   | **Keywords:** Small ship          |
+|                                   | detection, Optical remote         |
+|                                   | sensing, YOLOv12, Difference Mask |
+|                                   | Mixed Attention, Efficient        |
+|                                   | Channel Attention                 |
+|                                   |                                   |
+|                                   | Abstract {#abstract .IOPP-Abstrac |
+|                                   | tHeading}                         |
+|                                   | ========                          |
+|                                   |                                   |
+|                                   | Small-ship detection in optical   |
+|                                   | remote sensing images remains     |
+|                                   | challenging because targets are   |
+|                                   | usually tiny, visually weak, and  |
+|                                   | easily confused with complex      |
+|                                   | maritime backgrounds such as      |
+|                                   | waves, wakes, reefs, and          |
+|                                   | shoreline clutter. To address     |
+|                                   | this problem, this paper proposes |
+|                                   | a YOLOv12-based small-ship        |
+|                                   | detector that integrates          |
+|                                   | Difference Mask Mixed Attention   |
+|                                   | (DMMA) and ECA-style channel      |
+|                                   | attention for enhanced            |
+|                                   | target-background discrimination  |
+|                                   | and feature refinement. The DMMA  |
+|                                   | module improves feature           |
+|                                   | interaction by introducing        |
+|                                   | difference-aware gating into      |
+|                                   | window-based self-attention,      |
+|                                   | which helps suppress inconsistent |
+|                                   | responses between ship structures |
+|                                   | and surrounding clutter.          |
+|                                   | Meanwhile, the ECA-style channel  |
+|                                   | refinement module recalibrates    |
+|                                   | informative channels while        |
+|                                   | preserving practical inference    |
+|                                   | efficiency. Experiments on MASATI |
+|                                   | and HRSC2016-MS demonstrate the   |
+|                                   | effectiveness of the proposed     |
+|                                   | method. The proposed YOLOv12 +    |
+|                                   | DMMA + ECA model achieves 0.839   |
+|                                   | mAP@0.5 and 0.555 mAP@0.5:0.95 on |
+|                                   | MASATI, and 0.824 mAP@0.5 and     |
+|                                   | 0.589 mAP@0.5:0.95 on             |
+|                                   | HRSC2016-MS, outperforming        |
+|                                   | YOLOv8, RT-DETR, DINO, LiM-YOLO,  |
+|                                   | and FBVF-YOLO in mAP@0.5 on both  |
+|                                   | datasets. These results indicate  |
+|                                   | that the proposed                 |
+|                                   | difference-aware attention design |
+|                                   | improves target-background        |
+|                                   | discrimination and enhances       |
+|                                   | small-ship detection performance  |
+|                                   | in optical remote sensing images. |
+|                                   |                                   |
+|                                   | 1. Introduction {#introduction .I |
+|                                   | OPP-H1}                           |
+|                                   | ===============                   |
+|                                   |                                   |
+|                                   | Small-ship detection in optical   |
+|                                   | remote sensing imagery remains a  |
+|                                   | challenging small-object          |
+|                                   | detection task with direct value  |
+|                                   | for maritime surveillance, port   |
+|                                   | operation analysis, and coastal   |
+|                                   | security. In practical scenes,    |
+|                                   | ships often occupy only a few     |
+|                                   | pixels and are embedded in highly |
+|                                   | dynamic backgrounds containing    |
+|                                   | waves, reefs, cloud shadows, and  |
+|                                   | shoreline clutter. These factors  |
+|                                   | cause weak target saliency and    |
+|                                   | high visual ambiguity, making     |
+|                                   | detectors prone to missed         |
+|                                   | detections and false alarms.      |
+|                                   | Therefore, improving              |
+|                                   | discriminative representation for |
+|                                   | tiny maritime targets under       |
+|                                   | complex backgrounds is a central  |
+|                                   | problem in remote sensing vision. |
+|                                   |                                   |
+|                                   | Recent one-stage detectors        |
+|                                   | provide an effective              |
+|                                   | speed-accuracy trade-off, yet     |
+|                                   | performance bottlenecks persist   |
+|                                   | when object scale becomes         |
+|                                   | extremely small and contextual    |
+|                                   | interference becomes dominant. To |
+|                                   | address this, we design a         |
+|                                   | YOLOv12-based detector that       |
+|                                   | couples efficient global-local    |
+|                                   | attention with lightweight        |
+|                                   | channel refinement. The model is  |
+|                                   | built around a Difference Mask    |
+|                                   | Mixed Attention (DMMA) mechanism  |
+|                                   | and an Efficient Channel          |
+|                                   | Attention (ECA) strategy to       |
+|                                   | improve target-background         |
+|                                   | discrimination and feature        |
+|                                   | representation for small ship     |
+|                                   | detection.                        |
+|                                   |                                   |
+|                                   | The key motivation of DMMA is not |
+|                                   | only to aggregate context, but to |
+|                                   | make target-background            |
+|                                   | separability explicit during      |
+|                                   | feature interaction. By           |
+|                                   | explicitly modeling the           |
+|                                   | pixel-level contrast between      |
+|                                   | ships and their wakes, DMMA       |
+|                                   | encourages the network to         |
+|                                   | emphasize edge-consistent and     |
+|                                   | structure-consistent responses    |
+|                                   | while suppressing texture noise   |
+|                                   | from sea clutter. This            |
+|                                   | difference-aware design is        |
+|                                   | especially important in maritime  |
+|                                   | imagery, where many hard          |
+|                                   | negatives share similar intensity |
+|                                   | statistics with true ship         |
+|                                   | regions. In parallel, ECA         |
+|                                   | provides channel reweighting to   |
+|                                   | reinforce informative semantics   |
+|                                   | and suppress redundant maritime   |
+|                                   | background responses.             |
+|                                   |                                   |
+|                                   | The main contributions of this    |
+|                                   | work are summarized as follows.   |
+|                                   | First, we propose a YOLOv12-based |
+|                                   | small-ship detection framework    |
+|                                   | that introduces Difference Mask   |
+|                                   | Mixed Attention to strengthen     |
+|                                   | target-background separability in |
+|                                   | complex maritime scenes. Unlike   |
+|                                   | generic attention enhancement     |
+|                                   | that mainly improves contextual   |
+|                                   | aggregation, DMMA introduces an   |
+|                                   | auxiliary mask branch to          |
+|                                   | construct normalized pairwise     |
+|                                   | difference cues and suppress      |
+|                                   | token interactions that are       |
+|                                   | inconsistent with ship            |
+|                                   | structures. This design is        |
+|                                   | motivated by the observation that |
+|                                   | waves, wakes, reefs, and          |
+|                                   | shoreline textures may resemble   |
+|                                   | ships locally, yet remain         |
+|                                   | inconsistent with true ship       |
+|                                   | regions in structural continuity. |
+|                                   | Second, we integrate an ECA-style |
+|                                   | channel refinement strategy into  |
+|                                   | the DMMA-enhanced feature         |
+|                                   | extraction process to recalibrate |
+|                                   | channel-wise responses and        |
+|                                   | suppress redundant sea-surface    |
+|                                   | texture activations with limited  |
+|                                   | computational burden. Third,      |
+|                                   | comparison experiments are        |
+|                                   | conducted on MASATI and           |
+|                                   | HRSC2016-MS against               |
+|                                   | representative CNN-based,         |
+|                                   | Transformer-based, and            |
+|                                   | ship-specific detectors,          |
+|                                   | including YOLOv8, RT-DETR, DINO,  |
+|                                   | LiM-YOLO, and FBVF-YOLO, and      |
+|                                   | ablation studies are further      |
+|                                   | performed to analyze the          |
+|                                   | individual and complementary      |
+|                                   | effects of DMMA and ECA. The      |
+|                                   | proposed model achieves the best  |
+|                                   | mAP@0.5 on both datasets,         |
+|                                   | indicating its effectiveness in   |
+|                                   | target discovery and              |
+|                                   | target-background discrimination  |
+|                                   | for optical remote sensing ship   |
+|                                   | detection.                        |
+|                                   |                                   |
+|                                   | **2. Related work**               |
+|                                   |                                   |
+|                                   | Object detection methods have     |
+|                                   | developed rapidly from            |
+|                                   | traditional handcrafted-feature   |
+|                                   | frameworks to deep learning based |
+|                                   | end-to-end detectors. Early       |
+|                                   | two-stage methods represented by  |
+|                                   | the R-CNN family achieved strong  |
+|                                   | accuracy through proposal         |
+|                                   | generation and refinement, but    |
+|                                   | their inference speed was         |
+|                                   | relatively limited for real-time  |
+|                                   | maritime monitoring. In contrast, |
+|                                   | one-stage detectors represented   |
+|                                   | by the YOLO family provided a     |
+|                                   | more practical speed-accuracy     |
+|                                   | balance by directly regressing    |
+|                                   | bounding boxes and class          |
+|                                   | probabilities in a unified        |
+|                                   | framework. From early YOLO        |
+|                                   | versions to newer generations,    |
+|                                   | continuous improvements in        |
+|                                   | backbone design, multi-scale      |
+|                                   | feature fusion, training          |
+|                                   | strategy, and detection head      |
+|                                   | formulation have significantly    |
+|                                   | strengthened robustness and       |
+|                                   | engineering usability. For remote |
+|                                   | sensing tasks, especially optical |
+|                                   | ship detection, YOLO-based        |
+|                                   | frameworks have become a          |
+|                                   | preferred technical route because |
+|                                   | they support high-throughput      |
+|                                   | processing while remaining        |
+|                                   | flexible for task-specific module |
+|                                   | redesign.                         |
+|                                   |                                   |
+|                                   | Although YOLO detectors are       |
+|                                   | efficient, small-ship detection   |
+|                                   | in optical remote sensing images  |
+|                                   | remains difficult due to          |
+|                                   | intrinsic scene characteristics.  |
+|                                   | Compared with natural-image       |
+|                                   | benchmarks, maritime remote       |
+|                                   | sensing images usually contain    |
+|                                   | larger observation ranges, weaker |
+|                                   | object saliency, and more severe  |
+|                                   | background interference. Tiny     |
+|                                   | ship targets are often mixed with |
+|                                   | waves, wakes, reefs, shoreline    |
+|                                   | textures, and illumination        |
+|                                   | fluctuations, causing high        |
+|                                   | inter-class similarity between    |
+|                                   | true targets and hard negatives.  |
+|                                   | Under these conditions, repeated  |
+|                                   | downsampling and convolution-only |
+|                                   | local aggregation may weaken fine |
+|                                   | structural cues and lead to       |
+|                                   | missed detections or unstable     |
+|                                   | recall. Therefore, improving      |
+|                                   | discriminative representation for |
+|                                   | tiny targets in complex maritime  |
+|                                   | backgrounds is a key research     |
+|                                   | direction.                        |
+|                                   |                                   |
+|                                   | To address the representation     |
+|                                   | bottleneck of pure convolution,   |
+|                                   | attention mechanisms have been    |
+|                                   | increasingly introduced into      |
+|                                   | object detection. Spatial         |
+|                                   | attention and channel attention   |
+|                                   | first demonstrated that adaptive  |
+|                                   | feature reweighting can suppress  |
+|                                   | irrelevant responses and improve  |
+|                                   | detector focus. Subsequently,     |
+|                                   | self-attention based modeling     |
+|                                   | further expanded receptive        |
+|                                   | interaction by capturing          |
+|                                   | long-range dependencies, which is |
+|                                   | valuable when local appearance    |
+|                                   | alone is ambiguous. In            |
+|                                   | high-resolution remote sensing    |
+|                                   | scenarios, window-based           |
+|                                   | self-attention is particularly    |
+|                                   | attractive because it provides a  |
+|                                   | practical compromise between      |
+|                                   | contextual modeling and inference |
+|                                   | efficiency. This trend            |
+|                                   | establishes the theoretical basis |
+|                                   | for integrating mixed attention   |
+|                                   | structures into YOLO-style        |
+|                                   | detectors for small-ship tasks.   |
+|                                   |                                   |
+|                                   | However, generic attention is     |
+|                                   | still insufficient in many        |
+|                                   | maritime scenes because false     |
+|                                   | responses are frequently caused   |
+|                                   | by subtle visual similarity       |
+|                                   | between ship regions and          |
+|                                   | surrounding clutter. This         |
+|                                   | motivates the introduction of a   |
+|                                   | difference-driven mechanism. By   |
+|                                   | explicitly modeling the           |
+|                                   | pixel-level contrast between      |
+|                                   | ships and their wakes,            |
+|                                   | difference-aware feature          |
+|                                   | interaction can better emphasize  |
+|                                   | edge-consistent and               |
+|                                   | structure-consistent target cues  |
+|                                   | while reducing interference from  |
+|                                   | sea-surface textures. In this     |
+|                                   | sense, the Difference Mask        |
+|                                   | strategy is not only an           |
+|                                   | operational design but a targeted |
+|                                   | response to the core ambiguity of |
+|                                   | maritime optical detection. It    |
+|                                   | improves target-background        |
+|                                   | separability at the feature level |
+|                                   | and provides a stronger semantic  |
+|                                   | foundation for robust small-ship  |
+|                                   | recognition.                      |
+|                                   |                                   |
+|                                   | At the same time, channel-level   |
+|                                   | feature selection remains         |
+|                                   | essential for improving           |
+|                                   | representation efficiency.        |
+|                                   | Efficient Channel Attention (ECA) |
+|                                   | offers a lightweight way to       |
+|                                   | capture local cross-channel       |
+|                                   | interaction with a compact        |
+|                                   | channel-interaction design.       |
+|                                   | Compared with more complex        |
+|                                   | channel-attention blocks, ECA     |
+|                                   | keeps the computational burden    |
+|                                   | low while still reinforcing       |
+|                                   | informative channels. This        |
+|                                   | property is important for         |
+|                                   | practical detection systems where |
+|                                   | accuracy gains must be achieved   |
+|                                   | under constrained computational   |
+|                                   | budgets. Therefore, combining     |
+|                                   | Difference Mask based spatial     |
+|                                   | discrimination with ECA based     |
+|                                   | channel refinement forms a        |
+|                                   | complementary and computationally |
+|                                   | efficient attention design.       |
+|                                   |                                   |
+|                                   | Although existing attention-based |
+|                                   | detectors improve contextual      |
+|                                   | modeling and feature reweighting, |
+|                                   | most of them are still designed   |
+|                                   | as general-purpose enhancement    |
+|                                   | modules rather than mechanisms    |
+|                                   | tailored to maritime ambiguity.   |
+|                                   | In optical remote sensing ship    |
+|                                   | detection, many false responses   |
+|                                   | are caused not only by            |
+|                                   | insufficient context, but also by |
+|                                   | subtle visual similarity between  |
+|                                   | true ship regions and surrounding |
+|                                   | clutter such as wakes, wave       |
+|                                   | textures, and coastal             |
+|                                   | interference. Therefore, merely   |
+|                                   | strengthening generic attention   |
+|                                   | is often insufficient for         |
+|                                   | small-ship detection in maritime  |
+|                                   | imagery. The key challenge in     |
+|                                   | this task is not only the lack of |
+|                                   | long-range contextual             |
+|                                   | interaction, but also the         |
+|                                   | existence of numerous background  |
+|                                   | patterns that are locally salient |
+|                                   | yet structurally inconsistent     |
+|                                   | with real ships. The proposed     |
+|                                   | DMMA is designed for this         |
+|                                   | specific failure mode: instead of |
+|                                   | only enhancing contextual         |
+|                                   | aggregation, it introduces        |
+|                                   | normalized pairwise difference    |
+|                                   | cues to suppress misleading token |
+|                                   | interactions before attention     |
+|                                   | normalization. In this sense, the |
+|                                   | proposed design differs from      |
+|                                   | generic attention add-ons that    |
+|                                   | mainly strengthen feature         |
+|                                   | responses but do not explicitly   |
+|                                   | model target-background           |
+|                                   | inconsistency in complex maritime |
+|                                   | scenes. Motivated by this         |
+|                                   | observation, we introduce a       |
+|                                   | difference-aware attention design |
+|                                   | that explicitly suppresses        |
+|                                   | inconsistent token interactions,  |
+|                                   | and further couple it with        |
+|                                   | lightweight channel refinement to |
+|                                   | obtain a more targeted solution   |
+|                                   | for small-ship detection in       |
+|                                   | complex maritime backgrounds.     |
+|                                   |                                   |
+|                                   | **3. Method**                     |
+|                                   |                                   |
+|                                   | This work proposes a              |
+|                                   | YOLOv12-based small-ship detector |
+|                                   | for optical remote sensing        |
+|                                   | images. The framework is centered |
+|                                   | on two coordinated components:    |
+|                                   | Difference Mask Mixed Attention   |
+|                                   | (DMMA), which enhances            |
+|                                   | target-background discrimination  |
+|                                   | during spatial-token interaction, |
+|                                   | and an ECA-style channel          |
+|                                   | refinement module, which improves |
+|                                   | channel-wise feature selection    |
+|                                   | with limited additional cost. The |
+|                                   | detector follows the standard     |
+|                                   | backbone-neck-head paradigm of    |
+|                                   | YOLOv12, while replacing several  |
+|                                   | key feature extraction and fusion |
+|                                   | units with DMMA-enhanced modules  |
+|                                   | to improve representation quality |
+|                                   | for challenging small-ship        |
+|                                   | scenarios. Figure 1 illustrates   |
+|                                   | the overall architecture of the   |
+|                                   | proposed YOLOv12 + DMMA + ECA     |
+|                                   | framework and highlights the      |
+|                                   | insertion positions of the        |
+|                                   | DMMA-enhanced modules.            |
+|                                   |                                   |
+|                                   | ![](media/image1.png){width="6.18 |
+|                                   | 8976377952756in"                  |
+|                                   | height="1.5361111111111112in"}fig |
+|                                   | ure1                              |
+|                                   |                                   |
+|                                   | The overall network follows a     |
+|                                   | backbone-neck-head paradigm. In   |
+|                                   | the backbone, shallow and         |
+|                                   | intermediate stages generate      |
+|                                   | hierarchical features, while the  |
+|                                   | deeper P4 and P5 stages introduce |
+|                                   | DMMA-enhanced feature extraction  |
+|                                   | (C2fDMMA) to strengthen           |
+|                                   | long-range dependency modeling in |
+|                                   | cluttered maritime scenes. In the |
+|                                   | neck, a top-down and bottom-up    |
+|                                   | bidirectional fusion path is      |
+|                                   | used, and C2fDMMA blocks are      |
+|                                   | inserted into the key P3 and P4   |
+|                                   | feature-fusion nodes to reduce    |
+|                                   | semantic dilution during scale    |
+|                                   | transfer. In the head,            |
+|                                   | predictions are produced from the |
+|                                   | YOLOv12 detection scales,         |
+|                                   | enabling a balance between detail |
+|                                   | preservation and semantic         |
+|                                   | robustness. This design keeps the |
+|                                   | original YOLOv12 detection        |
+|                                   | pipeline while replacing selected |
+|                                   | feature extraction and fusion     |
+|                                   | units with difference-aware       |
+|                                   | attention blocks.                 |
+|                                   |                                   |
+|                                   | Inside each DMMA block, the input |
+|                                   | feature map is first partitioned  |
+|                                   | into non-overlapping windows, and |
+|                                   | each window is processed by       |
+|                                   | multi-head self-attention. For an |
+|                                   | input feature                     |
+|                                   | $X \in \mathbb{R}^{B \times H \ti |
+|                                   | mes W \times C}$,                 |
+|                                   | the window partition operation    |
+|                                   | produces                          |
+|                                   | $X_{w} \in \mathbb{R}^{(B \cdot N |
+|                                   | _{w}) \times N \times C}$,        |
+|                                   | where $N = w^{2}$ is the number   |
+|                                   | of tokens in each window. A       |
+|                                   | linear projection is then used to |
+|                                   | generate four branches, namely    |
+|                                   | query, key, value, and mask       |
+|                                   | features:                         |
+|                                   |                                   |
+|                                   | $$\lbrack Q,K,V,M\rbrack = Linear |
+|                                   | (X_{w}).$$                        |
+|                                   |                                   |
+|                                   | For the i-th and j-th tokens in   |
+|                                   | the same window, the mask branch  |
+|                                   | is used to construct a normalized |
+|                                   | pairwise difference cue:          |
+|                                   |                                   |
+|                                   | $$\Delta_{\text{ij}} = \frac{\lef |
+|                                   | t. \parallel M_{i} - M_{j} \right |
+|                                   | .\parallel_{1}}{\left. \parallel  |
+|                                   | M_{j} \right.\parallel_{1} + \eps |
+|                                   | ilon}$$                           |
+|                                   |                                   |
+|                                   | where $\epsilon$ is a small       |
+|                                   | constant for numerical stability. |
+|                                   | The difference cue is converted   |
+|                                   | into a suppressive gate:          |
+|                                   |                                   |
+|                                   | $$G_{\text{ij}} = 1 - \sigma(\Del |
+|                                   | ta_{\text{ij}})$$                 |
+|                                   |                                   |
+|                                   | $$S = QK^{\top} + B_{\text{rel}}  |
+|                                   | + M_{\text{sw}},$$                |
+|                                   |                                   |
+|                                   | where $B_{\text{rel}}$ denotes    |
+|                                   | the learnable relative position   |
+|                                   | bias and $M_{\text{sw}}$ is the   |
+|                                   | shifted-window mask when window   |
+|                                   | shifting is enabled. DMMA injects |
+|                                   | the difference-aware gate into    |
+|                                   | the attention logits before       |
+|                                   | softmax:                          |
+|                                   |                                   |
+|                                   | $${\widetilde{S}}_{\text{ij}} = \ |
+|                                   | frac{S_{\text{ij}}}{\tau} \cdot ( |
+|                                   | \eta G_{\text{ij}})$$             |
+|                                   |                                   |
+|                                   | where $\tau$ is a learnable       |
+|                                   | head-wise temperature parameter   |
+|                                   | and $\eta$ is a learnable mask    |
+|                                   | scaling factor. The learnable     |
+|                                   | temperature avoids manually       |
+|                                   | fixing the strength of            |
+|                                   | difference-aware suppression and  |
+|                                   | allows the model to adapt the     |
+|                                   | gating intensity to different     |
+|                                   | maritime scenes and feature       |
+|                                   | scales. The final attention map   |
+|                                   | and output feature are obtained   |
+|                                   | by:                               |
+|                                   |                                   |
+|                                   | $$A_{\text{ij}} = \text{Softmax}_ |
+|                                   | {j}({\widetilde{S}}_{\text{ij}}), |
+|                                   | \quad Y = AV$$                    |
+|                                   |                                   |
+|                                   | This design is not intended to    |
+|                                   | simply amplify arbitrary feature  |
+|                                   | differences. Instead, the mask    |
+|                                   | branch is jointly optimized with  |
+|                                   | the final detection objective and |
+|                                   | is expected to encode             |
+|                                   | structure-related contrast cues   |
+|                                   | rather than an independent        |
+|                                   | segmentation target. As a result, |
+|                                   | large pairwise differences are    |
+|                                   | more likely to appear when two    |
+|                                   | tokens belong to structurally     |
+|                                   | inconsistent regions, such as     |
+|                                   | ship-to-wave, ship-to-wake, or    |
+|                                   | ship-to-shoreline interactions,   |
+|                                   | whereas tokens within coherent    |
+|                                   | ship regions tend to preserve     |
+|                                   | relatively small differences. The |
+|                                   | normalized L1 formulation reduces |
+|                                   | the influence of absolute         |
+|                                   | activation magnitude and makes    |
+|                                   | the gate less sensitive to scale  |
+|                                   | variation across windows.         |
+|                                   | Applying the difference-aware     |
+|                                   | gate multiplicatively to the      |
+|                                   | attention logits directly         |
+|                                   | rescales pairwise affinity before |
+|                                   | softmax, so misleading            |
+|                                   | interactions can be suppressed    |
+|                                   | while compatible interactions     |
+|                                   | remain comparable within the same |
+|                                   | window. The learnable temperature |
+|                                   | parameter and mask scaling factor |
+|                                   | further allow the suppression     |
+|                                   | strength to adapt across feature  |
+|                                   | levels and datasets, although a   |
+|                                   | more systematic sensitivity       |
+|                                   | analysis of these parameters will |
+|                                   | be investigated in future work.   |
+|                                   |                                   |
+|                                   | Figure2                           |
+|                                   |                                   |
+|                                   | ![](media/image2.png){width="6.18 |
+|                                   | 8976377952756in"                  |
+|                                   | height="1.5361111111111112in"}    |
+|                                   |                                   |
+|                                   | To complement the                 |
+|                                   | difference-aware spatial-token    |
+|                                   | interaction, each DMMA layer      |
+|                                   | further includes an ECA-style     |
+|                                   | channel refinement module. Given  |
+|                                   | an input feature map              |
+|                                   | $F \in \mathbb{R}^{B \times C \ti |
+|                                   | mes H \times W}$,                 |
+|                                   | global average pooling and global |
+|                                   | max pooling are first applied to  |
+|                                   | obtain compact channel            |
+|                                   | descriptors. These descriptors    |
+|                                   | are then processed by lightweight |
+|                                   | one-dimensional convolution along |
+|                                   | the channel dimension to model    |
+|                                   | local cross-channel interaction:  |
+|                                   |                                   |
+|                                   | $$z = Conv1D(GAP(F)) + Conv1D(GMP |
+|                                   | (F)).$$                           |
+|                                   |                                   |
+|                                   | The channel weights are obtained  |
+|                                   | by sigmoid activation:            |
+|                                   |                                   |
+|                                   | $$w = \sigma(z),$$                |
+|                                   |                                   |
+|                                   | $$F' = F \odot w.$$               |
+|                                   |                                   |
+|                                   | This channel refinement branch    |
+|                                   | introduces only negligible        |
+|                                   | additional structural burden      |
+|                                   | compared with the main DMMA       |
+|                                   | attention path, but it helps      |
+|                                   | recalibrate informative channels  |
+|                                   | and suppress redundant            |
+|                                   | sea-surface texture responses.    |
+|                                   | This is particularly useful in    |
+|                                   | maritime scenes, where wave and   |
+|                                   | wake patterns may activate many   |
+|                                   | background channels and interfere |
+|                                   | with small-ship representations.  |
+|                                   |                                   |
+|                                   | In implementation, the channel    |
+|                                   | mask is applied to the DMMA       |
+|                                   | attention output and then         |
+|                                   | combined with the shortcut        |
+|                                   | connection of the original block. |
+|                                   | This preserves the residual       |
+|                                   | learning behavior of YOLOv12      |
+|                                   | while allowing the ECA branch to  |
+|                                   | emphasize discriminative channels |
+|                                   | with stable residual learning     |
+|                                   | behavior.                         |
+|                                   |                                   |
+|                                   | $$L = \lambda_{\text{box}}L_{\tex |
+|                                   | t{box}} + \lambda_{\text{cls}}L_{ |
+|                                   | \text{cls}} + \lambda_{\text{dfl} |
+|                                   | }L_{\text{dfl}}$$                 |
+|                                   |                                   |
+|                                   | where $L_{\text{box}}$,           |
+|                                   | $L_{\text{cls}}$, and             |
+|                                   | $L_{\text{dfl}}$ denote the box   |
+|                                   | regression loss, classification   |
+|                                   | loss, and distribution focal      |
+|                                   | loss, respectively, and           |
+|                                   | $\lambda_{\text{box}}$,           |
+|                                   | $\lambda_{\text{cls}}$, and       |
+|                                   | $\lambda_{\text{dfl}}$ are their  |
+|                                   | corresponding balancing           |
+|                                   | coefficients. Under the           |
+|                                   | single-class setting (nc = 1,     |
+|                                   | ship), the provided training      |
+|                                   | configuration applies stronger    |
+|                                   | localization emphasis, such as a  |
+|                                   | larger $\lambda_{\text{box}}$ ,   |
+|                                   | to suit tiny-target maritime      |
+|                                   | detection. In addition,           |
+|                                   | augmentation strategies including |
+|                                   | mosaic, mixup, copy-paste, and    |
+|                                   | geometric perturbation are        |
+|                                   | adopted to improve robustness     |
+|                                   | under appearance variation.       |
+|                                   |                                   |
+|                                   | **4. Experiments**                |
+|                                   |                                   |
+|                                   | **4.1. *Experimental Setup***     |
+|                                   |                                   |
+|                                   | To evaluate the effectiveness of  |
+|                                   | the proposed method, experiments  |
+|                                   | were mainly conducted on the      |
+|                                   | MASATI dataset, which is widely   |
+|                                   | used for maritime ship detection, |
+|                                   | and supplementary evaluation was  |
+|                                   | further performed on HRSC2016-MS. |
+|                                   | Since the current task focuses on |
+|                                   | ship detection only, the number   |
+|                                   | of categories was set to one,     |
+|                                   | namely ship. Each dataset was     |
+|                                   | divided into training,            |
+|                                   | validation, and test subsets      |
+|                                   | according to the predefined       |
+|                                   | split. For both MASATI and        |
+|                                   | HRSC2016-MS, all images were      |
+|                                   | randomly split at the image level |
+|                                   | into training, validation, and    |
+|                                   | test subsets with a ratio of      |
+|                                   | 8:1:1, corresponding to 80%, 10%, |
+|                                   | and 10% of the images,            |
+|                                   | respectively. The same split was  |
+|                                   | consistently used for all         |
+|                                   | compared methods to ensure fair   |
+|                                   | evaluation.                       |
+|                                   |                                   |
+|                                   | All experiments were carried out  |
+|                                   | in a Linux-based training         |
+|                                   | environment equipped with an      |
+|                                   | NVIDIA GeForce RTX 4090 GPU with  |
+|                                   | 24 GB memory. The model           |
+|                                   | development and code modification |
+|                                   | were completed in a Windows       |
+|                                   | environment, while the training   |
+|                                   | and evaluation procedures were    |
+|                                   | executed on Linux. The deep       |
+|                                   | learning framework was based on   |
+|                                   | PyTorch 2.2.2 with CUDA 11.8, and |
+|                                   | the detection framework used      |
+|                                   | Ultralytics YOLOv12.              |
+|                                   |                                   |
+|                                   | For the ablation study, all       |
+|                                   | YOLOv12 variants were trained     |
+|                                   | under the same settings. The      |
+|                                   | optimizer was AdamW, the initial  |
+|                                   | learning rate was set to 0.001,   |
+|                                   | the final learning rate factor    |
+|                                   | was 0.01, and the weight decay    |
+|                                   | was 0.05. The total number of     |
+|                                   | epochs was 150, the batch size    |
+|                                   | was 6, and the input image size   |
+|                                   | was 640 × 640. In addition,       |
+|                                   | mosaic, mixup, and copy-paste     |
+|                                   | augmentation strategies were      |
+|                                   | adopted to improve robustness for |
+|                                   | small target detection. The main  |
+|                                   | evaluation metrics included       |
+|                                   | Precision, Recall, mAP@0.5, and   |
+|                                   | mAP@0.5:0.95.                     |
+|                                   |                                   |
+|                                   | For comparison with               |
+|                                   | representative detection          |
+|                                   | frameworks, YOLOv8 is selected as |
+|                                   | a mature one-stage CNN-based      |
+|                                   | detector, RT-DETR is selected as  |
+|                                   | a real-time end-to-end            |
+|                                   | Transformer detector, and DINO is |
+|                                   | selected as a strong DETR-style   |
+|                                   | end-to-end detection baseline. In |
+|                                   | addition, LiM-YOLO is included as |
+|                                   | a recent ship-specific detector   |
+|                                   | designed for optical remote       |
+|                                   | sensing ship detection, while     |
+|                                   | FBVF-YOLO is further introduced   |
+|                                   | as a recent remote-sensing        |
+|                                   | super-tiny-object detection       |
+|                                   | method reported in 2025. These    |
+|                                   | methods provide complementary     |
+|                                   | baselines from general-purpose    |
+|                                   | real-time detection,              |
+|                                   | Transformer-based detection,      |
+|                                   | task-specific ship detection, and |
+|                                   | recent remote-sensing tiny-object |
+|                                   | detection perspectives. All       |
+|                                   | compared methods are evaluated    |
+|                                   | under the same dataset setting    |
+|                                   | and the same evaluation metrics   |
+|                                   | whenever the corresponding        |
+|                                   | outputs are available. Since the  |
+|                                   | released DINO evaluation logs do  |
+|                                   | not provide traditional Precision |
+|                                   | values under a fixed confidence   |
+|                                   | threshold, its Precision entries  |
+|                                   | are left blank in Tables 2 and 4. |
+|                                   | The available recall-related      |
+|                                   | quantity in DINO follows the      |
+|                                   | official COCO evaluation protocol |
+|                                   | and is reported as AR@100 rather  |
+|                                   | than the conventional Recall      |
+|                                   | under a fixed confidence          |
+|                                   | threshold. For completeness, the  |
+|                                   | AR@100 values are reported in the |
+|                                   | Recall column with an asterisk,   |
+|                                   | namely 0.469\* on MASATI and      |
+|                                   | 0.731\* on HRSC2016-MS,           |
+|                                   | corresponding to 46.9% and 73.1%, |
+|                                   | respectively. The asterisk        |
+|                                   | indicates that these values are   |
+|                                   | not directly comparable with the  |
+|                                   | conventional Recall values of     |
+|                                   | YOLOv8, RT-DETR, LiM-YOLO,        |
+|                                   | FBVF-YOLO, and the proposed       |
+|                                   | method.                           |
+|                                   |                                   |
+|                                   | Table1                            |
+|                                   |                                   |
+|                                   | **4.2. *Comparison with           |
+|                                   | State-of-the-Art Methods on       |
+|                                   | MASATI***                         |
+|                                   |                                   |
+|                                   | To further evaluate the           |
+|                                   | effectiveness of the proposed     |
+|                                   | method, we compare it with        |
+|                                   | representative detectors on the   |
+|                                   | MASATI dataset, including YOLOv8, |
+|                                   | RT-DETR, DINO, LiM-YOLO, and      |
+|                                   | FBVF-YOLO. YOLOv8 is selected as  |
+|                                   | a mature one-stage CNN-based      |
+|                                   | detector, RT-DETR and DINO        |
+|                                   | represent Transformer-based       |
+|                                   | end-to-end detection frameworks,  |
+|                                   | LiM-YOLO is a recent              |
+|                                   | ship-specific detector designed   |
+|                                   | for optical remote sensing        |
+|                                   | imagery, and FBVF-YOLO is a       |
+|                                   | recent remote-sensing             |
+|                                   | super-tiny-object detector.       |
+|                                   |                                   |
+|                                   | Table2                            |
+|                                   |                                   |
+|                                   | Table 2 reports the comparison    |
+|                                   | results on the MASATI dataset.    |
+|                                   | Compared with YOLOv8, the         |
+|                                   | proposed YOLOv12 + DMMA + ECA     |
+|                                   | model improves Precision from     |
+|                                   | 0.744 to 0.838, Recall from 0.612 |
+|                                   | to 0.733, mAP@0.5 from 0.651 to   |
+|                                   | 0.839, and mAP@0.5:0.95 from      |
+|                                   | 0.244 to 0.555. Compared with     |
+|                                   | RT-DETR, the proposed model       |
+|                                   | improves mAP@0.5 by 0.156 and     |
+|                                   | mAP@0.5:0.95 by 0.300. Compared   |
+|                                   | with DINO, it improves mAP@0.5 by |
+|                                   | 0.171 and mAP@0.5:0.95 by 0.270.  |
+|                                   | Compared with FBVF-YOLO, a recent |
+|                                   | remote-sensing super-tiny-object  |
+|                                   | detector, it further improves     |
+|                                   | Precision by 0.037, Recall by     |
+|                                   | 0.044, mAP@0.5 by 0.114, and      |
+|                                   | mAP@0.5:0.95 by 0.285. These      |
+|                                   | results indicate that the         |
+|                                   | proposed difference-aware         |
+|                                   | attention design is effective for |
+|                                   | enhancing small-ship              |
+|                                   | representation in complex         |
+|                                   | maritime backgrounds. It should   |
+|                                   | be noted that the DINO Recall     |
+|                                   | value marked with \* is AR@100    |
+|                                   | under the COCO protocol and is    |
+|                                   | therefore not used for direct     |
+|                                   | comparison with the conventional  |
+|                                   | Recall values of the other        |
+|                                   | detectors.                        |
+|                                   |                                   |
+|                                   | Compared with LiM-YOLO, a recent  |
+|                                   | ship-specific detector, the       |
+|                                   | proposed method achieves higher   |
+|                                   | Precision, Recall, mAP@0.5, and   |
+|                                   | mAP@0.5:0.95 on MASATI.           |
+|                                   | Specifically, mAP@0.5 is improved |
+|                                   | from 0.821 to 0.839 and           |
+|                                   | mAP@0.5:0.95 is improved from     |
+|                                   | 0.546 to 0.555, indicating that   |
+|                                   | the proposed DMMA + ECA design    |
+|                                   | improves both target discovery    |
+|                                   | and stricter localization quality |
+|                                   | on MASATI. This result suggests   |
+|                                   | that the proposed method not only |
+|                                   | separates ships from confusing    |
+|                                   | background clutter effectively,   |
+|                                   | but also preserves sufficient     |
+|                                   | structural information for        |
+|                                   | moderate-to-high IoU evaluation   |
+|                                   | in this dataset. Overall, the     |
+|                                   | proposed model shows the          |
+|                                   | strongest overall detection       |
+|                                   | performance on MASATI among the   |
+|                                   | compared methods. **4.3.          |
+|                                   | *Ablation Study on MASATI***      |
+|                                   |                                   |
+|                                   | ***Table3***                      |
+|                                   |                                   |
+|                                   | Table 3 reports the ablation      |
+|                                   | results of different YOLOv12      |
+|                                   | variants on MASATI. Compared with |
+|                                   | the original YOLOv12 baseline,    |
+|                                   | the ECA-only model improves       |
+|                                   | Precision from 0.736 to 0.745,    |
+|                                   | Recall from 0.649 to 0.653,       |
+|                                   | mAP@0.5 from 0.628 to 0.671, and  |
+|                                   | mAP@0.5:0.95 from 0.222 to 0.319. |
+|                                   | These gains indicate that         |
+|                                   | channel-wise redundancy indeed    |
+|                                   | exists in maritime ship           |
+|                                   | detection, where sea-surface      |
+|                                   | textures and clutter responses    |
+|                                   | occupy informative channels       |
+|                                   | together with true ship features. |
+|                                   | Therefore, lightweight channel    |
+|                                   | recalibration alone can already   |
+|                                   | filter part of the redundant      |
+|                                   | background information and        |
+|                                   | improve feature selection.        |
+|                                   |                                   |
+|                                   | After introducing DMMA, Precision |
+|                                   | increases to 0.834, Recall to     |
+|                                   | 0.728, mAP@0.5 to 0.791, and      |
+|                                   | mAP@0.5:0.95 to 0.522. The        |
+|                                   | magnitude of this improvement is  |
+|                                   | substantially larger than that of |
+|                                   | ECA alone, showing that the       |
+|                                   | dominant gain comes from          |
+|                                   | explicitly modeling               |
+|                                   | target-background interaction     |
+|                                   | rather than simply adding a       |
+|                                   | lightweight attention branch.     |
+|                                   | This result supports the main     |
+|                                   | design motivation of DMMA, namely |
+|                                   | that suppressing structurally     |
+|                                   | inconsistent token interactions   |
+|                                   | is particularly important for     |
+|                                   | small-ship detection in cluttered |
+|                                   | maritime scenes.                  |
+|                                   |                                   |
+|                                   | When ECA is further combined with |
+|                                   | DMMA, the final YOLOv12 + DMMA +  |
+|                                   | ECA model achieves the best       |
+|                                   | overall performance, with         |
+|                                   | Precision of 0.838, Recall of     |
+|                                   | 0.733, mAP@0.5 of 0.839, and      |
+|                                   | mAP@0.5:0.95 of 0.555. Compared   |
+|                                   | with the DMMA-only model, adding  |
+|                                   | ECA further improves mAP@0.5 by   |
+|                                   | 0.048 and mAP@0.5:0.95 by 0.033.  |
+|                                   | This suggests that ECA should not |
+|                                   | be viewed merely as a minor       |
+|                                   | cosmetic refinement. Instead,     |
+|                                   | DMMA first filters structurally   |
+|                                   | inconsistent spatial-token        |
+|                                   | interactions and produces cleaner |
+|                                   | discriminative features, after    |
+|                                   | which ECA further consolidates    |
+|                                   | the gain by recalibrating         |
+|                                   | informative channels and          |
+|                                   | suppressing residual sea-surface  |
+|                                   | clutter responses. Overall, the   |
+|                                   | current ablation results support  |
+|                                   | a clear division of labor: DMMA   |
+|                                   | provides the principal            |
+|                                   | discrimination gain, while ECA    |
+|                                   | acts as a complementary channel   |
+|                                   | refinement module with only a     |
+|                                   | limited impact on inference       |
+|                                   | speed.                            |
+|                                   |                                   |
+|                                   | **4.4. *Supplementary Comparison  |
+|                                   | on HRSC2016-MS***                 |
+|                                   |                                   |
+|                                   | ***Table4***                      |
+|                                   |                                   |
+|                                   | To further evaluate the           |
+|                                   | cross-dataset applicability of    |
+|                                   | the proposed method,              |
+|                                   | supplementary experiments are     |
+|                                   | conducted on HRSC2016-MS by       |
+|                                   | comparing the proposed model with |
+|                                   | YOLOv8, RT-DETR, DINO, LiM-YOLO,  |
+|                                   | and FBVF-YOLO. As shown in Table  |
+|                                   | 4, the proposed YOLOv12 + DMMA +  |
+|                                   | ECA model achieves a Precision of |
+|                                   | 0.837, Recall of 0.691, mAP@0.5   |
+|                                   | of 0.824, and mAP@0.5:0.95 of     |
+|                                   | 0.589. Compared with YOLOv8, the  |
+|                                   | proposed method improves          |
+|                                   | Precision by 0.117, Recall by     |
+|                                   | 0.157, mAP@0.5 by 0.202, and      |
+|                                   | mAP@0.5:0.95 by 0.226. Compared   |
+|                                   | with RT-DETR, it improves         |
+|                                   | Precision by 0.103, Recall by     |
+|                                   | 0.172, mAP@0.5 by 0.229, and      |
+|                                   | mAP@0.5:0.95 by 0.157. These      |
+|                                   | results indicate that the         |
+|                                   | proposed difference-aware         |
+|                                   | attention design generalizes well |
+|                                   | to another ship detection         |
+|                                   | dataset.                          |
+|                                   |                                   |
+|                                   | Compared with DINO, the proposed  |
+|                                   | method improves mAP@0.5 from      |
+|                                   | 0.624 to 0.824 and mAP@0.5:0.95   |
+|                                   | from 0.466 to 0.589, further      |
+|                                   | confirming its effectiveness over |
+|                                   | a strong DETR-style detection     |
+|                                   | baseline in terms of mAP-based    |
+|                                   | evaluation. The DINO Recall value |
+|                                   | marked with \* is AR@100 under    |
+|                                   | the COCO protocol and is          |
+|                                   | therefore reported only as a      |
+|                                   | reference rather than used for    |
+|                                   | direct Recall ranking.            |
+|                                   |                                   |
+|                                   | Compared with FBVF-YOLO, the      |
+|                                   | proposed method improves          |
+|                                   | Precision from 0.828 to 0.837,    |
+|                                   | mAP@0.5 from 0.819 to 0.824, and  |
+|                                   | mAP@0.5:0.95 from 0.555 to 0.589, |
+|                                   | but its Recall is lower from      |
+|                                   | 0.753 to 0.691. This suggests     |
+|                                   | that FBVF-YOLO remains more       |
+|                                   | aggressive in target coverage on  |
+|                                   | this dataset, whereas the         |
+|                                   | proposed method provides a more   |
+|                                   | balanced precision-localization   |
+|                                   | trade-off.                        |
+|                                   |                                   |
+|                                   | Compared with LiM-YOLO, the       |
+|                                   | proposed method achieves higher   |
+|                                   | Recall and mAP@0.5, while         |
+|                                   | LiM-YOLO still obtains higher     |
+|                                   | Precision and mAP@0.5:0.95. This  |
+|                                   | result indicates that the         |
+|                                   | proposed DMMA + ECA design        |
+|                                   | remains advantageous in target    |
+|                                   | discovery and moderate-IoU        |
+|                                   | detection quality, whereas        |
+|                                   | LiM-YOLO is still stronger in     |
+|                                   | stricter localization accuracy on |
+|                                   | HRSC2016-MS. Therefore, the       |
+|                                   | current results suggest that the  |
+|                                   | proposed method improves          |
+|                                   | ship-background separability      |
+|                                   | effectively, but its boundary     |
+|                                   | precision under stricter          |
+|                                   | thresholds still requires further |
+|                                   | enhancement on this dataset.      |
+|                                   |                                   |
+|                                   | **4.5. *Inference Speed           |
+|                                   | Analysis***                       |
+|                                   |                                   |
+|                                   | In addition to detection          |
+|                                   | accuracy, inference speed is an   |
+|                                   | important consideration for       |
+|                                   | practical remote sensing          |
+|                                   | applications. As shown in Table   |
+|                                   | 5, FPS is evaluated on the        |
+|                                   | HRSC2016-MS dataset under the     |
+|                                   | same hardware and inference       |
+|                                   | settings, and the reported values |
+|                                   | are integer-rounded averages over |
+|                                   | three repeated runs. The baseline |
+|                                   | YOLOv12 model achieves 76 FPS,    |
+|                                   | while the ECA-only variant        |
+|                                   | achieves 74 FPS. After            |
+|                                   | introducing DMMA, the FPS reaches |
+|                                   | 72, and the final YOLOv12 + DMMA  |
+|                                   | + ECA model achieves 70 FPS.      |
+|                                   | These results indicate that the   |
+|                                   | proposed variants maintain        |
+|                                   | practical inference throughput on |
+|                                   | the RTX 4090 platform. Although   |
+|                                   | the FPS gradually decreases from  |
+|                                   | 76 for the baseline model to 70   |
+|                                   | for the final YOLOv12 + DMMA +    |
+|                                   | ECA variant, the overall speed    |
+|                                   | reduction remains limited,        |
+|                                   | suggesting that the proposed      |
+|                                   | attention modules have only a     |
+|                                   | minor impact on practical         |
+|                                   | inference efficiency. Therefore,  |
+|                                   | the proposed YOLOv12 + DMMA + ECA |
+|                                   | model is suitable for offline or  |
+|                                   | near-real-time maritime           |
+|                                   | surveillance, port monitoring,    |
+|                                   | and remote sensing interpretation |
+|                                   | scenarios where detection         |
+|                                   | reliability and practical         |
+|                                   | throughput are both important.    |
+|                                   |                                   |
+|                                   | Although the proposed method      |
+|                                   | achieves the best mAP@0.5 on both |
+|                                   | MASATI and HRSC2016-MS, and also  |
+|                                   | attains a higher mAP@0.5:0.95     |
+|                                   | than LiM-YOLO on MASATI, its      |
+|                                   | mAP@0.5:0.95 on HRSC2016-MS is    |
+|                                   | still lower than that of          |
+|                                   | LiM-YOLO. This pattern indicates  |
+|                                   | that DMMA and ECA consistently    |
+|                                   | strengthen target discovery and   |
+|                                   | moderate-IoU detection quality,   |
+|                                   | while their effect on stricter    |
+|                                   | localization is dataset-dependent |
+|                                   | by suppressing confusing          |
+|                                   | background interactions and       |
+|                                   | enhancing ship-related responses. |
+|                                   | However, high-IoU evaluation is   |
+|                                   | more sensitive to tight boundary  |
+|                                   | alignment. For small ships, even  |
+|                                   | slight deviations in box size,    |
+|                                   | box extent, or edge coverage can  |
+|                                   | cause a noticeable IoU drop. When |
+|                                   | ship boundaries are heavily mixed |
+|                                   | with wakes, wave crests, or       |
+|                                   | shoreline textures, the           |
+|                                   | difference-aware suppression in   |
+|                                   | DMMA may emphasize discriminative |
+|                                   | separation more strongly than     |
+|                                   | boundary completeness. This is    |
+|                                   | beneficial for classification     |
+|                                   | confidence and recall, but is     |
+|                                   | less sufficient for very precise  |
+|                                   | localization. Therefore, future   |
+|                                   | improvements should focus more on |
+|                                   | boundary-aware regression         |
+|                                   | constraints or                    |
+|                                   | localization-enhanced detection   |
+|                                   | heads rather than further         |
+|                                   | increasing global discrimination  |
+|                                   | alone.                            |
+|                                   |                                   |
+|                                   | table5                            |
+|                                   |                                   |
+|                                   | **4.6. *Visualization Analysis*** |
+|                                   |                                   |
+|                                   | The qualitative results are       |
+|                                   | consistent with the quantitative  |
+|                                   | findings. In the baseline YOLOv12 |
+|                                   | model, typical failure cases      |
+|                                   | include missed detections of tiny |
+|                                   | low-contrast ships, false alarms  |
+|                                   | on wake fragments or bright wave  |
+|                                   | crests, and unstable responses    |
+|                                   | near shorelines or coastal        |
+|                                   | clutter. After introducing DMMA,  |
+|                                   | many wake-like and wave-texture   |
+|                                   | responses are visibly suppressed, |
+|                                   | while weak ship instances become  |
+|                                   | more detectable because the model |
+|                                   | focuses more on structurally      |
+|                                   | consistent ship regions instead   |
+|                                   | of surrounding clutter. After     |
+|                                   | further adding the ECA-style      |
+|                                   | refinement module, activations on |
+|                                   | true ship regions become more     |
+|                                   | concentrated and several residual |
+|                                   | false responses are reduced,      |
+|                                   | especially in scenes with         |
+|                                   | repetitive sea-surface textures.  |
+|                                   | Nevertheless, failure cases still |
+|                                   | remain when ship boundaries are   |
+|                                   | heavily mixed with wakes or when  |
+|                                   | extremely small targets occupy    |
+|                                   | only a few pixels, which is       |
+|                                   | consistent with the still-lower   |
+|                                   | mAP@0.5:0.95 than LiM-YOLO on     |
+|                                   | HRSC2016-MS and indicates that    |
+|                                   | boundary-level localization       |
+|                                   | remains the main limitation of    |
+|                                   | the current design in more        |
+|                                   | ![](media/image3.png){width="6.18 |
+|                                   | 8888888888889in"                  |
+|                                   | height="1.5361111111111112in"}cha |
+|                                   | llenging                          |
+|                                   | cross-dataset cases.              |
+|                                   |                                   |
+|                                   | Figure3                           |
+|                                   |                                   |
+|                                   | Therefore, both the quantitative  |
+|                                   | and qualitative results indicate  |
+|                                   | that the combination of DMMA and  |
+|                                   | ECA improves target discovery and |
+|                                   | response stability in challenging |
+|                                   | maritime scenes, while stricter   |
+|                                   | boundary localization remains a   |
+|                                   | direction for further             |
+|                                   | improvement.                      |
+|                                   |                                   |
+|                                   | **5. Conclusion**                 |
+|                                   |                                   |
+|                                   | In this paper, we presented a     |
+|                                   | YOLOv12-based small-ship          |
+|                                   | detection framework for optical   |
+|                                   | remote sensing images by          |
+|                                   | integrating Difference Mask Mixed |
+|                                   | Attention and ECA-style channel   |
+|                                   | refinement. The proposed method   |
+|                                   | aims to improve target-background |
+|                                   | separability in complex maritime  |
+|                                   | scenes, where tiny ship targets   |
+|                                   | are easily confused with          |
+|                                   | surrounding clutter such as       |
+|                                   | waves, wakes, reefs, and          |
+|                                   | shoreline textures.               |
+|                                   |                                   |
+|                                   | Experiments on MASATI demonstrate |
+|                                   | that the proposed YOLOv12 + DMMA  |
+|                                   | + ECA model achieves a Precision  |
+|                                   | of 0.838, Recall of 0.733,        |
+|                                   | mAP@0.5 of 0.839, and             |
+|                                   | mAP@0.5:0.95 of 0.555. Compared   |
+|                                   | with YOLOv8, RT-DETR, DINO,       |
+|                                   | LiM-YOLO, and FBVF-YOLO, the      |
+|                                   | proposed method obtains the best  |
+|                                   | conventional Precision, Recall,   |
+|                                   | mAP@0.5, and mAP@0.5:0.95 on      |
+|                                   | MASATI. Supplementary experiments |
+|                                   | on HRSC2016-MS further show that  |
+|                                   | the proposed method achieves a    |
+|                                   | Precision of 0.837, Recall of     |
+|                                   | 0.691, mAP@0.5 of 0.824, and      |
+|                                   | mAP@0.5:0.95 of 0.589. On this    |
+|                                   | dataset, the proposed method      |
+|                                   | achieves the best mAP@0.5 among   |
+|                                   | all compared methods and higher   |
+|                                   | Recall than LiM-YOLO, while       |
+|                                   | FBVF-YOLO shows higher Recall and |
+|                                   | LiM-YOLO remains stronger in      |
+|                                   | Precision and mAP@0.5:0.95. The   |
+|                                   | AR@100 values reported for DINO   |
+|                                   | are marked with \* and are not    |
+|                                   | directly compared with            |
+|                                   | conventional Recall. These        |
+|                                   | results indicate that the         |
+|                                   | proposed design is particularly   |
+|                                   | effective for target discovery    |
+|                                   | and strong overall detection      |
+|                                   | performance in complex maritime   |
+|                                   | backgrounds.                      |
+|                                   |                                   |
+|                                   | The ablation study further shows  |
+|                                   | that DMMA is the dominant source  |
+|                                   | of performance gain, while ECA    |
+|                                   | acts as a complementary channel   |
+|                                   | refinement module that            |
+|                                   | consolidates the improvement by   |
+|                                   | suppressing residual background   |
+|                                   | responses. At the same time, the  |
+|                                   | comparison with LiM-YOLO and      |
+|                                   | FBVF-YOLO shows that the proposed |
+|                                   | model is not uniformly superior   |
+|                                   | across all evaluation criteria on |
+|                                   | every dataset. Although it        |
+|                                   | achieves the strongest overall    |
+|                                   | performance on MASATI and the     |
+|                                   | best mAP@0.5 on HRSC2016-MS, its  |
+|                                   | mAP@0.5:0.95 on HRSC2016-MS       |
+|                                   | remains lower than that of        |
+|                                   | LiM-YOLO, and its Recall on       |
+|                                   | HRSC2016-MS is lower than that of |
+|                                   | FBVF-YOLO. Therefore, the present |
+|                                   | work should be viewed as a        |
+|                                   | detection framework that strongly |
+|                                   | emphasizes target-background      |
+|                                   | discrimination, robust target     |
+|                                   | discovery, and competitive        |
+|                                   | overall detection quality, while  |
+|                                   | still leaving room for further    |
+|                                   | improvement in stricter boundary  |
+|                                   | localization on more challenging  |
+|                                   | datasets.                         |
+|                                   |                                   |
+|                                   | In future work, more fine-grained |
+|                                   | mechanism validation, including   |
+|                                   | variants without difference-aware |
+|                                   | gating, different DMMA insertion  |
+|                                   | positions, and sensitivity        |
+|                                   | analyses of the learnable         |
+|                                   | temperature and mask scaling      |
+|                                   | factors, will be investigated. In |
+|                                   | addition, boundary-aware          |
+|                                   | regression constraints and        |
+|                                   | localization-enhanced detection   |
+|                                   | heads will be explored to improve |
+|                                   | precise box alignment while       |
+|                                   | preserving the current gains in   |
+|                                   | small-ship discovery.             |
+|                                   |                                   |
+|                                   | Acknowledgements {#acknowledgemen |
+|                                   | ts .IOPP-H1}                      |
+|                                   | ================                  |
+|                                   |                                   |
+|                                   | Proin pharetra nonummy pede.      |
+|                                   | Mauris et orci. Aenean nec lorem. |
+|                                   | In porttitor. Donec laoreet       |
+|                                   | nonummy augue. Suspendisse dui    |
+|                                   | purus, scelerisque at, vulputate  |
+|                                   | vitae, pretium mattis, nunc.      |
+|                                   | Mauris eget neque at sem          |
+|                                   | venenatis eleifend. Ut nonummy.   |
+|                                   |                                   |
+|                                   | References {#references .IOPP-H1} |
+|                                   | ==========                        |
+|                                   |                                   |
+|                                   | 1.  Surname A, Surname B and      |
+|                                   |     Surname C 2015 *Journal Name* |
+|                                   |     **37** 074203                 |
+|                                   |                                   |
+|                                   | 2.  Surname A and Surname B 2009  |
+|                                   |     *Journal Name* **23** 544     |
++-----------------------------------+-----------------------------------+

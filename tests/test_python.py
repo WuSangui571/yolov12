@@ -53,6 +53,56 @@ def test_dmma_eca_toggle_and_ablation_yaml():
     assert model.model is not None
 
 
+def test_dmma_gate_and_temperature_ablation_switches():
+    """Test DMMA ablation switches for difference gate and learnable/fixed scaling parameters."""
+    import torch.nn as nn
+
+    from ultralytics.nn.modules.block import C2fDMMA
+
+    gate_off_block = C2fDMMA(
+        128,
+        128,
+        n=1,
+        window_size=4,
+        num_heads=4,
+        use_difference_gate=False,
+    )
+    gate_off_attn = gate_off_block.m[0].attn
+    assert gate_off_attn.use_difference_gate is False
+
+    fixed_scale_block = C2fDMMA(
+        128,
+        128,
+        n=1,
+        window_size=4,
+        num_heads=4,
+        learnable_temperature=False,
+        learnable_mask_scale=False,
+    )
+    fixed_attn = fixed_scale_block.m[0].attn
+    assert not isinstance(fixed_attn.head_temperature, nn.Parameter)
+    assert not isinstance(fixed_attn.mask_scale, nn.Parameter)
+
+    learnable_scale_block = C2fDMMA(128, 128, n=1, window_size=4, num_heads=4)
+    learnable_attn = learnable_scale_block.m[0].attn
+    assert isinstance(learnable_attn.head_temperature, nn.Parameter)
+    assert isinstance(learnable_attn.mask_scale, nn.Parameter)
+
+
+def test_dmma_ablation_yaml_variants_build():
+    """Test that new DMMA ablation YAML variants can be parsed into models."""
+    cfgs = (
+        ROOT / "cfg" / "models" / "v12" / "yolov12-dmma-no-gate.yaml",
+        ROOT / "cfg" / "models" / "v12" / "yolov12-dmma-fixed-scale.yaml",
+        ROOT / "cfg" / "models" / "v12" / "yolov12-dmma-backbone-only.yaml",
+        ROOT / "cfg" / "models" / "v12" / "yolov12-dmma-neck-only.yaml",
+    )
+
+    for cfg in cfgs:
+        model = YOLO(cfg)
+        assert model.model is not None
+
+
 def test_model_forward():
     """Test the forward pass of the YOLO model."""
     model = YOLO(CFG)

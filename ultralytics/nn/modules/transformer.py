@@ -492,12 +492,18 @@ class DifferenceMaskAttention(nn.Module):
         qk_scale=None,
         attn_drop=0.0,
         proj_drop=0.0,
+        use_difference_gate=True,
+        learnable_temperature=True,
+        learnable_mask_scale=True,
+        temperature_init=1.0,
+        mask_scale_init=1.0,
     ):
         """Initialize DMMA with windowed relative position bias and additional mask branch."""
         super().__init__()
         self.dim = dim
         self.window_size = _to_2tuple(window_size)
         self.num_heads = num_heads
+        self.use_difference_gate = use_difference_gate
         head_dim = dim // num_heads
         self.scale = qk_scale or head_dim**-0.5
 
@@ -521,8 +527,16 @@ class DifferenceMaskAttention(nn.Module):
         self.attn_drop = nn.Dropout(attn_drop)
         self.proj = nn.Linear(dim, dim)
         self.proj_drop = nn.Dropout(proj_drop)
-        self.head_temperature = nn.Parameter(torch.ones(num_heads))
-        self.mask_scale = nn.Parameter(torch.ones(num_heads))
+        temp = torch.full((num_heads,), float(temperature_init))
+        scale = torch.full((num_heads,), float(mask_scale_init))
+        if learnable_temperature:
+            self.head_temperature = nn.Parameter(temp)
+        else:
+            self.register_buffer("head_temperature", temp)
+        if learnable_mask_scale:
+            self.mask_scale = nn.Parameter(scale)
+        else:
+            self.register_buffer("mask_scale", scale)
         nn.init.trunc_normal_(self.relative_position_bias_table, std=0.02)
 
         self.softmax = nn.Softmax(dim=-1)
@@ -542,17 +556,20 @@ class DifferenceMaskAttention(nn.Module):
         k = k * self.scale
 
         # 差分掩码计算 - 使用 float32 确保数值稳定性
-        m_fp32 = m.float()
-        m1 = m_fp32.repeat_interleave(n, dim=3)
-        m2 = m_fp32.transpose(-2, -1).reshape(b_, self.num_heads, 1, n * (c // self.num_heads))
-        m2 = torch.abs(m2).repeat_interleave(n, dim=2)
-        m3 = torch.abs(m1 - m2).reshape(b_, self.num_heads, n, c // self.num_heads, n).permute(0, 1, 3, 2, 4)
-        m0 = m2.reshape(b_, self.num_heads, n, c // self.num_heads, n).permute(0, 1, 3, 2, 4)
-        m0 = torch.sum(m0, 2).clamp_min(1e-6)
-        m3 = torch.sum(m3, 2)
-        dm_mask = self.minus_sigmoid(m3 / m0)
+        if self.use_difference_gate:
+            m_fp32 = m.float()
+            m1 = m_fp32.repeat_interleave(n, dim=3)
+            m2 = m_fp32.transpose(-2, -1).reshape(b_, self.num_heads, 1, n * (c // self.num_heads))
+            m2 = torch.abs(m2).repeat_interleave(n, dim=2)
+            m3 = torch.abs(m1 - m2).reshape(b_, self.num_heads, n, c // self.num_heads, n).permute(0, 1, 3, 2, 4)
+            m0 = m2.reshape(b_, self.num_heads, n, c // self.num_heads, n).permute(0, 1, 3, 2, 4)
+            m0 = torch.sum(m0, 2).clamp_min(1e-6)
+            m3 = torch.sum(m3, 2)
+            dm_mask = self.minus_sigmoid(m3 / m0)
         # 转换回输入数据类型以确保 AMP 兼容
-        dm_mask = dm_mask.to(input_dtype)
+            dm_mask = dm_mask.to(input_dtype)
+        else:
+            dm_mask = torch.ones((b_, self.num_heads, n, n), device=x.device, dtype=input_dtype)
 
         attn = q @ k.transpose(-2, -1)
         relative_position_bias = self.relative_position_bias_table[self.relative_position_index.view(-1)].view(
@@ -730,6 +747,9 @@ class DMMALayer(nn.Module):
         act_layer=nn.GELU,
         norm_layer=nn.LayerNorm,
         use_eca=True,
+        use_difference_gate=True,
+        learnable_temperature=True,
+        learnable_mask_scale=True,
     ):
         super().__init__()
         self.dim = dim
@@ -745,6 +765,9 @@ class DMMALayer(nn.Module):
             qkv_bias=qkv_bias,
             attn_drop=attn_drop,
             proj_drop=drop,
+            use_difference_gate=use_difference_gate,
+            learnable_temperature=learnable_temperature,
+            learnable_mask_scale=learnable_mask_scale,
         )
         self.channel_attn = DMMAChannelAttention(dim) if use_eca else nn.Identity()
         self.drop_path = DropPath(drop_path) if drop_path > 0.0 else nn.Identity()
@@ -896,7 +919,9 @@ class MSDMMALayer(nn.Module):
         norm_layer=nn.LayerNorm,
         use_density_gate=False,  # Default False for stability; set True for DASA-style gating
         use_eca=True,
-
+        use_difference_gate=True,
+        learnable_temperature=True,
+        learnable_mask_scale=True,
     ):
         super().__init__()
         self.window_sizes = list(window_sizes)
@@ -923,6 +948,9 @@ class MSDMMALayer(nn.Module):
                 act_layer=act_layer,
                 norm_layer=norm_layer,
                 use_eca=use_eca,
+                use_difference_gate=use_difference_gate,
+                learnable_temperature=learnable_temperature,
+                learnable_mask_scale=learnable_mask_scale,
             )
             for ws in self.window_sizes
         )
