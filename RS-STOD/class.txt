@@ -1,0 +1,14 @@
+id: 0,
+name: Small Vehicle
+
+id: 1,
+name: Large Vehicle
+
+id: 2,
+name: Ship
+
+id: 3,
+name: Airplane
+
+id: 4,
+name: Storage Tank

@@ -1,0 +1,15 @@
+# RS-STOD dataset configuration.
+# Paths are resolved from this YAML file location, so this works after moving
+# the whole repository between Windows and Linux.
+
+train: ../RS-STOD/train.txt
+val: ../RS-STOD/val.txt
+test: ../RS-STOD/val.txt
+
+nc: 5
+names:
+  0: Small Vehicle
+  1: Large Vehicle
+  2: Ship
+  3: Airplane
+  4: Storage Tank
